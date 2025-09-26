@@ -1,0 +1,28 @@
+# Local .gitignore for Codigo project
+amb_virtual/
+venv/
+env/
+.venv/
+
+# Data and splits
+data/
+data/splits/
+splits/
+
+# Models and large binaries
+Modelos/
+*.tflite
+*.keras
+*.h5
+*.pb
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.pyc
+
+# IDEs
+.vscode/
+.idea/
+
