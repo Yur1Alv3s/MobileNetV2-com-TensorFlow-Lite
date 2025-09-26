@@ -7,8 +7,6 @@ import os
 import warnings
 import tensorflow as tf
 import Fire_Detection_Problem.models.mobileNetv2 as mobilenet
-import Fire_Detection_Problem.models.efficientnetv2 as efficientnet
-from tensorflow.keras.applications.efficientnet_v2 import preprocess_input as eff_preproc # type: ignore
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input as mb_preproc # type: ignore
 from sklearn.metrics import classification_report
 from sklearn.utils import compute_class_weight
@@ -17,7 +15,7 @@ from Fire_Detection_Problem.utils.contaminacao import verificar_contaminacao
 from Fire_Detection_Problem.utils.metrics import *
 from Fire_Detection_Problem.utils.logs import *
 from Fire_Detection_Problem.converter.tfliteConverter import TFLiteConverter
-from Fire_Detection_Problem.dataset import loader
+from Fire_Detection_Problem.loaders import loader
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -32,22 +30,16 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 # ds_treino = loader.load_dataset_aug(train_dir, batch_size=32, img_size=(224,224), use_augmentation=True, preprocess_fn=mb_preproc, shuffle=True)
 # ds_val   = loader.load_dataset_aug(val_dir,   batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=mb_preproc, shuffle=False)
-# ds_treino = loader.load_dataset_aug(train_dir, batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=efficientnet.preprocess_input, shuffle=True)
-# ds_val   = loader.load_dataset_aug(val_dir,   batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=efficientnet.preprocess_input, shuffle=True)
-
-# ds_treino = loader.load_dataset(train_dir, batch_size=32,img_size=(224,224))
-# ds_val = loader.load_dataset(val_dir, batch_size=32,img_size=(224,224))
 
 
 # monitorDeAprendizado = EarlyStopping(
 #     monitor='val_loss',      # ou 'val_accuracy', mas o loss é melhor para evitar overfitting
-#     patience=3,              # espera 3 épocas sem melhora antes de parar
+#     patience=3,              # vai espera 3 épocas sem melhora antes de parar
 #     restore_best_weights=True
 # )
 
 # logIniciandoTreino()
 
-# #modelo = efficientnet.build_model(input_shape=(224, 224, 3),variant='b0',fine_tune=True, unfreeze_last_n=80)
 # modelo = mobilenet.build_model(input_shape=(224, 224, 3),fine_tune=False, unfreeze_last_n=31)
 
 
