@@ -1,6 +1,9 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models  # type: ignore
 from tensorflow.keras.applications import MobileNetV2  # type: ignore
+from tensorflow.keras.applications import mobilenet_v2  # type: ignore # <-- necessário para preprocess e modelo
+from tensorflow.keras.optimizers import Adam            # <-- usado no compile
+
 
 def build_model(input_shape=(224, 224, 3), fine_tune=False, unfreeze_last_n: int = 30, freeze_bn: bool = True):
     base_model = MobileNetV2(

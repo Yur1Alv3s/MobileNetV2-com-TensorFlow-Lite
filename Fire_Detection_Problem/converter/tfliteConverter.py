@@ -5,6 +5,7 @@ import numpy as np
 from typing import Callable, Optional
 
 
+
 class TFLiteConverter:
     def __init__(self, modelo, nome_saida="modelo_convertido"):
         """
@@ -43,7 +44,7 @@ class TFLiteConverter:
         modelo = self.modelo
         if isinstance(modelo, Path):
             print(f"[INFO] Carregando modelo Keras de: {modelo}")
-            modelo = tf.keras.models.load_model(str(modelo))
+            modelo = tf.keras.models.load_model(str(modelo), compile=False)
 
         # Criar conversor
         converter = tf.lite.TFLiteConverter.from_keras_model(modelo)
@@ -137,21 +138,3 @@ class TFLiteConverter:
         except Exception as e:
             print(f"[WARN] Não foi possível calcular tamanhos: {e}")
 
-
-if __name__ == '__main__':
-    # Exemplo de uso rápido (converte o modelo EfficientNetV2-B0 criado em memória)
-    try:
-        from ..models.efficientnetv2 import build_model
-    except Exception:
-        # import relativo falhou quando executado diretamente; tenta import absoluto local
-        try:
-            from Fire_Detection_Problem.models.efficientnetv2 import build_model
-        except Exception:
-            build_model = None
-
-    if build_model is not None:
-        print('[INFO] Construindo modelo EfficientNetV2-B0 em memória para teste de conversão...')
-        m = build_model(input_shape=(224, 224, 3), variant='b0', fine_tune=False)
-        c = TFLiteConverter(m, nome_saida='efficientnetv2_b0_fp32')
-        out = c.converter_tflite(Path('.'), quantizacao=None)
-        print(f'[INFO] Conversão de teste salva em: {out}')

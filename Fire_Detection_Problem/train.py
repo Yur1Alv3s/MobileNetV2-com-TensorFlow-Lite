@@ -21,54 +21,36 @@ from Fire_Detection_Problem.loaders import loader
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-#############################################################################################################################
+# Modo rápido de depuração (limita dataset e épocas) se variável de ambiente FAST_DEBUG=1
+#FAST_DEBUG = os.environ.get("FAST_DEBUG", "0") == "1"
 
-# train_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/Flame2/train")
-# val_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/Flame2/val")
-# test_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Flame2_Fire_Detection/data/Flame2/test")
+#####################################################################################################
+# Treino de modelo classificador binário (fire / nofire) com MobileNetV2
+#####################################################################################################
 
+# train_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/train")
+# val_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/val")
 
-# ds_treino = loader.load_dataset_aug(train_dir, batch_size=32, img_size=(224,224), use_augmentation=True, preprocess_fn=mb_preproc, shuffle=True)
+# ds_treino = loader.load_dataset_aug(train_dir, batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=mb_preproc, shuffle=True)
 # ds_val   = loader.load_dataset_aug(val_dir,   batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=mb_preproc, shuffle=False)
 
-
-# monitorDeAprendizado = EarlyStopping(
-#     monitor='val_loss',      # ou 'val_accuracy', mas o loss é melhor para evitar overfitting
-#     patience=3,              # vai espera 3 épocas sem melhora antes de parar
-#     restore_best_weights=True
-# )
-
-# logIniciandoTreino()
-
-# modelo = mobilenet.build_model(input_shape=(224, 224, 3),fine_tune=False, unfreeze_last_n=31)
-
-
-# verificar_contaminacao(ds_treino, ds_val, ds_teste)
-
-# # Chamar para cada conjunto
-# contar_labels(ds_treino, "treino")
-# contar_labels(ds_val, "validação")
-# contar_labels(ds_test, "teste")
-
+#modelo_class_bin = mobilenet.build_model(input_shape=(224, 224, 3),fine_tune=True, unfreeze_last_n=31)
 
 # modelo.fit(
 #     ds_treino, 
 #     validation_data=ds_val,
-#     epochs=15,
-#     callbacks=[monitorDeAprendizado]
+#     epochs=20
 # )
 
 # modelo.save("Modelos/mobilenetV2_Flame2_FineTuning_TrainAugmentation_preProMBNV2_ShuffleTrainONvalOFF_15_Epochs.keras")
 
-# ===================================================================================
-# Conversão TF-Lite
-# ===================================================================================
+#####################################################################################################
+# Treino de modelo regressor (crowd counting) com MobileNetV2
+#####################################################################################################
 
-# Caminho do modelo treinado 
-caminho_keras = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/mobilenetV2_Flame2_FineTuning_sem_augmentation_preProMBNV2_ShuffleTrainONvalOFF_20_Epochs.keras") 
+# ===========================
+# Parâmetros de REGRESSÃO
+# ===========================
+train_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/nwpu_regression/train_balanced")
+val_dir   = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/nwpu_regression/val")
 
-# Criar conversor 
-conversor = TFLiteConverter(caminho_keras, nome_saida="TFLITE_mobilenetV2_Flame2_FineTuning_sem_augmentation_preProMBNV2_ShuffleTrainONvalOFF_20_Epochs") 
-
-# Converter para TFLite 
-arquivo_tflite = conversor.converter_tflite(Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos"), quantizacao=None)
