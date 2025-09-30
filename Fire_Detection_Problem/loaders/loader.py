@@ -76,39 +76,58 @@ def load_dataset_aug(base_dir: Path, batch_size=32, img_size=(224,224), use_augm
                                        use_augmentation=use_augmentation)
 
 # ====== Representante p/ calibração INT8 ======
-def representative_dataset_generator(base_dir: Path,
+def classification_representative_dataset_generator(base_dir: Path,
                                      img_size=(224, 224),
                                      rep_samples: int = 500,
                                      batch_size: int = 1,
                                      use_augmentation: bool = False,
                                      preprocess_fn=None):
-    """Gera um generator representativo p/ calibração INT8 (TFLite)."""
+    """Gera um generator representativo p/ calibração INT8 (TFLite) para classificação binária."""
+
     fire_dir = base_dir / 'fire'
     nofire_dir = base_dir / 'nofire'
     if not fire_dir.exists() or not nofire_dir.exists():
         raise ValueError(f"Esperado subpastas 'fire' e 'nofire' em {base_dir}")
 
-    fire_files = tf.data.Dataset.list_files(str(fire_dir / '*'))
-    nofire_files = tf.data.Dataset.list_files(str(nofire_dir / '*'))
+    # Embaralha a seleção de arquivos (variedade nas amostras)
+    fire_files = tf.data.Dataset.list_files(str(fire_dir / '*'), shuffle=True, seed=42)
+    nofire_files = tf.data.Dataset.list_files(str(nofire_dir / '*'), shuffle=True, seed=42)
 
     def _load_image_from_path(path):
         img_bytes = tf.io.read_file(path)
-        img = tf.image.decode_jpeg(img_bytes, channels=3)
+        # Aceita JPEG/PNG/WebP; evita quebra com PNG
+        img = tf.image.decode_image(img_bytes, channels=3, expand_animations=False)
         img.set_shape([None, None, 3])
-        img = _resize_pad_and_preprocess(img, img_size, preprocess_fn)
+
+        # Alinha com o comportamento do treino (image_dataset_from_directory + image_size),
+        # que redimensiona diretamente para (H, W) sem preservar aspecto.
+        h, w = img_size
+        img = tf.image.resize(img, [h, w], method='bilinear', antialias=True)
+
+        # Mantém pixels em [0..255] (float32) para então aplicar o mesmo preprocess do treino
+        img = tf.cast(img, tf.float32)
+        if preprocess_fn is not None:
+            img = preprocess_fn(img)      # ex.: MobileNetV2.preprocess_input
+        else:
+            img = img / 255.0       # normalização padrão
+
         return img
 
     fire_ds = fire_files.map(_load_image_from_path, num_parallel_calls=AUTOTUNE).batch(batch_size)
     nofire_ds = nofire_files.map(_load_image_from_path, num_parallel_calls=AUTOTUNE).batch(batch_size)
 
+    # Mantém augmentation desabilitada p/ calibração (sem aleatoriedade)
     if use_augmentation:
         aug = _augmenter()
-        fire_ds = fire_ds.map(lambda x: aug(x, training=False))
-        nofire_ds = nofire_ds.map(lambda x: aug(x, training=False))
+        fire_ds = fire_ds.map(lambda x: aug(x, training=False), num_parallel_calls=AUTOTUNE)
+        nofire_ds = nofire_ds.map(lambda x: aug(x, training=False), num_parallel_calls=AUTOTUNE)
 
+    # Intercala fire/nofire
     ds = tf.data.Dataset.zip((fire_ds.repeat(), nofire_ds.repeat()))
-    ds = ds.map(lambda f_batch, n_batch: tf.concat([f_batch, n_batch], axis=0), num_parallel_calls=AUTOTUNE)
+    ds = ds.map(lambda f_batch, n_batch: tf.concat([f_batch, n_batch], axis=0),
+                num_parallel_calls=AUTOTUNE)
 
+    # Generator no formato esperado pelo TFLite (lista com um tensor [1,H,W,3] por yield)
     def generator():
         count = 0
         for batch in ds:
@@ -122,83 +141,3 @@ def representative_dataset_generator(base_dir: Path,
 
     return generator
 
-# ====== REGRESSÃO (CSV com filename,value) ======
-def load_dataset_regression(
-    train_dir: Path,
-    val_dir: Path,
-    labels_filename: str = 'labels.csv',
-    img_size: tuple = (224, 224),
-    batch_size: int = 32,
-    preprocess_fn: Optional[Callable] = None,
-    use_augmentation: bool = False,
-    shuffle_buffer: int = 512,
-    cache: bool = True,
-    prefetch: bool = True,
-    shuffle: bool = True,
-) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
-    """Carrega datasets de regressão (train, val) com labels contínuos (filename,value)."""
-
-    def _read_csv_labels(dir_path: Path) -> tuple[list[str], list[float]]:
-        csv_path = dir_path / labels_filename
-        if not csv_path.exists():
-            raise FileNotFoundError(f"Arquivo de labels não encontrado: {csv_path}")
-        filepaths: list[str] = []
-        values: list[float] = []
-        import csv as _csv
-        with open(csv_path, 'r', newline='') as f:
-            reader = _csv.reader(f)
-            for row_idx, row in enumerate(reader):
-                if not row:
-                    continue
-                if row_idx == 0:
-                    try:
-                        float(row[1])
-                    except Exception:
-                        continue  # header
-                try:
-                    filename, value = row[0], float(row[1])
-                except Exception as e:
-                    raise ValueError(f"Linha inválida em {csv_path}: {row}") from e
-                img_path = dir_path / filename
-                if not img_path.exists():
-                    raise FileNotFoundError(f"Imagem listada no CSV não encontrada: {img_path}")
-                filepaths.append(str(img_path))
-                values.append(value)
-        if not filepaths:
-            raise ValueError(f"Nenhuma entrada válida encontrada em {csv_path}")
-        return filepaths, values
-
-    def _build_ds(dir_path: Path, training: bool) -> tf.data.Dataset:
-        filepaths, values = _read_csv_labels(dir_path)
-        paths_ds = tf.data.Dataset.from_tensor_slices(filepaths)
-        values_ds = tf.data.Dataset.from_tensor_slices(values)
-        ds = tf.data.Dataset.zip((paths_ds, values_ds))
-
-        def _load(path, y):
-            img_bytes = tf.io.read_file(path)
-            img = tf.image.decode_image(img_bytes, channels=3, expand_animations=False)
-            img.set_shape([None, None, 3])
-            img = _resize_pad_and_preprocess(img, img_size, preprocess_fn)
-            return img, tf.cast(y, tf.float32)
-
-        ds = ds.map(_load, num_parallel_calls=AUTOTUNE)
-
-        if training and use_augmentation:
-            aug = _augmenter()
-            ds = ds.map(lambda x, y: (aug(x, training=True), y), num_parallel_calls=AUTOTUNE)
-
-        if training and shuffle:
-            ds = ds.shuffle(shuffle_buffer, reshuffle_each_iteration=True)
-
-        ds = ds.batch(batch_size)
-
-        if cache:
-            ds = ds.cache()
-        if prefetch:
-            ds = ds.prefetch(AUTOTUNE)
-
-        return ds
-
-    train_ds = _build_ds(train_dir, training=True)
-    val_ds = _build_ds(val_dir, training=False)
-    return train_ds, val_ds

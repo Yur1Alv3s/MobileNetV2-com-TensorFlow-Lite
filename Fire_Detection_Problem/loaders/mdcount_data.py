@@ -292,3 +292,63 @@ def build_shanghaitech_dataset(
     ds = ds.batch(batch_size)
     ds = ds.prefetch(AUTOTUNE)
     return ds
+
+def regression_representative_dataset_generator(
+    images_dir: Path,
+    split_list: List[str] = None,
+    img_size: Tuple[int, int] = (512, 512),
+    rep_samples: int = 500,
+    shuffle: bool = True,
+    preprocess_fn=None,
+):
+    """
+    Gera um generator representativo para calibração INT8 (TFLite) do modelo de REGRESSÃO.
+    - images_dir: pasta das imagens (ex.: .../part_A/train_data/images)
+    - split_list: lista com nomes dos arquivos (ex.: ["IMG_1.jpg", ...]); se None, usa todos da pasta
+    - img_size: (H, W) de entrada do modelo
+    - rep_samples: número de amostras a fornecer ao calibrador
+    - shuffle: embaralha a ordem das imagens
+    - preprocess_fn: função de pré-processamento; default = MobileNetV2.preprocess_input
+    Retorna:
+      generator que produz listas [tensor] com shape [1, H, W, 3] e dtype float32.
+    """
+    if preprocess_fn is None:
+        preprocess_fn = tf.keras.applications.mobilenet_v2.preprocess_input
+
+    Ht, Wt = img_size
+
+    # --- construir dataset de caminhos ---
+    if split_list is not None and len(split_list) > 0:
+        img_paths = [str(images_dir / name) for name in split_list]
+        ds_paths = tf.data.Dataset.from_tensor_slices(img_paths)
+        if shuffle:
+            ds_paths = ds_paths.shuffle(buffer_size=len(img_paths), seed=42, reshuffle_each_iteration=True)
+    else:
+        # cobre JPEG/PNG/WebP, etc.
+        ds_paths = tf.data.Dataset.list_files(str(images_dir / "*"), shuffle=shuffle, seed=42)
+
+    # --- loader + preprocess consistente com o treino ---
+    def _load_and_preprocess(path):
+        img_bytes = tf.io.read_file(path)
+        img = tf.image.decode_image(img_bytes, channels=3, expand_animations=False)
+        img.set_shape([None, None, 3])
+        img = tf.image.resize_with_pad(img, Ht, Wt, method="bilinear", antialias=True)
+        img = tf.cast(img, tf.float32)
+        img = preprocess_fn(img)  # por padrão, MobileNetV2.preprocess_input -> [-1, 1]
+        return img
+
+    ds = ds_paths.map(_load_and_preprocess, num_parallel_calls=AUTOTUNE)
+    ds = ds.batch(1)      # calibrador espera [1, H, W, 3] por yield
+    ds = ds.repeat()      # permite repassar se rep_samples > nº de arquivos
+    ds = ds.prefetch(AUTOTUNE)
+
+    # --- generator no formato esperado pelo TFLite ---
+    def generator():
+        count = 0
+        for img_batch in ds:
+            yield [img_batch.numpy().astype("float32")]
+            count += 1
+            if count >= rep_samples:
+                break
+
+    return generator
