@@ -95,10 +95,11 @@ ds_teste_regression = mdcount_data.build_shanghaitech_dataset(
 )
 
 
-keras_regression_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Regressao_ShanghaiTech_A.keras"
-tflite_regression_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_INT8_DR_Regressao_ShanghaiTech_A.tflite"
-keras_classification_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Classificacao_Flame2.keras"
-tflite_classification_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_INT8_FULL_Classificacao_Flame2.tflite"
+MODEL_DIR = BASE_DIR / "Modelos"
+keras_regression_model_path = str(MODEL_DIR / "Regressao_ShanghaiTech_A.keras")
+tflite_regression_model_path = str(MODEL_DIR / "TFLITE_INT8_DR_Regressao_ShanghaiTech_A.tflite")
+keras_classification_model_path = str(MODEL_DIR / "Classificacao_Flame2.keras")
+tflite_classification_model_path = str(MODEL_DIR / "TFLITE_INT8_FULL_Classificacao_Flame2.tflite")
 
 
 res = evaluate_models(
