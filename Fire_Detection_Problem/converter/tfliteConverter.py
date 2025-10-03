@@ -1,8 +1,8 @@
 from pathlib import Path
 import os
 from typing import Callable, Optional, List, Tuple, Union
-from Fire_Detection_Problem.loaders import classification_representative_dataset_generator
-from Fire_Detection_Problem.loaders import regression_representative_dataset_generator
+from Fire_Detection_Problem.loaders.loader import classification_representative_dataset_generator
+from Fire_Detection_Problem.loaders.mdcount_data import regression_representative_dataset_generator
 import numpy as np
 import tensorflow as tf
 
@@ -36,7 +36,7 @@ class TFLiteConverter:
             quantizacao:
                 - None (FP32)
                 - "FLOAT16"
-                - "INT8" (full integer, requer representative_dataset)
+                - "INT8_FULL" (full integer, requer representative_dataset)
                 - "INT8_DR" | "INT8_DYNAMIC" | "DYNAMIC" (INT8 Dynamic Range - sem representative_dataset)
             representative_data_dir:
                 - Classificação: dir contendo subpastas 'fire' e 'nofire'
@@ -75,7 +75,7 @@ class TFLiteConverter:
             converter.target_spec.supported_types = [tf.float16]
 
         # ======= INT8 Dynamic Range (sem representative dataset) =======
-        elif q in ("INT8_DR", "INT8_DYNAMIC", "DYNAMIC", "DR"):
+        elif q in ("INT8_DR"):
             print("[INFO] Quantização INT8 Dynamic Range (pesos int8, ativações em float32).")
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
             # Não definir representative_dataset
@@ -83,7 +83,7 @@ class TFLiteConverter:
             # Não alterar inference_input_type/output_type
 
         # ======= INT8 Full Integer (com representative dataset) =======
-        elif q == "INT8":
+        elif q == "INT8_FULL":
             print("[INFO] Quantização INT8 Full-Integer (requer representative dataset).")
             if representative_data_dir is None:
                 raise ValueError(

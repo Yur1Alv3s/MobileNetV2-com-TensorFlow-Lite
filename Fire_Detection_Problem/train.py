@@ -21,36 +21,23 @@ from Fire_Detection_Problem.loaders import loader
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-# Modo rápido de depuração (limita dataset e épocas) se variável de ambiente FAST_DEBUG=1
-#FAST_DEBUG = os.environ.get("FAST_DEBUG", "0") == "1"
 
 #####################################################################################################
 # Treino de modelo classificador binário (fire / nofire) com MobileNetV2
 #####################################################################################################
 
-# train_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/train")
-# val_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/val")
+train_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/train")
+val_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/val")
 
-# ds_treino = loader.load_dataset_aug(train_dir, batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=mb_preproc, shuffle=True)
-# ds_val   = loader.load_dataset_aug(val_dir,   batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=mb_preproc, shuffle=False)
+ds_treino = loader.load_dataset_aug(train_dir, batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=mb_preproc, shuffle=True)
+ds_val   = loader.load_dataset_aug(val_dir,   batch_size=32, img_size=(224,224), use_augmentation=False, preprocess_fn=mb_preproc, shuffle=False)
 
-#modelo_class_bin = mobilenet.build_model(input_shape=(224, 224, 3),fine_tune=True, unfreeze_last_n=31)
+modelo = mobilenet.build_model(input_shape=(224, 224, 3),fine_tune=True, unfreeze_last_n=31)
 
-# modelo.fit(
-#     ds_treino, 
-#     validation_data=ds_val,
-#     epochs=20
-# )
+modelo.fit(
+    ds_treino, 
+    validation_data=ds_val,
+    epochs=20
+)
 
-# modelo.save("Modelos/mobilenetV2_Flame2_FineTuning_TrainAugmentation_preProMBNV2_ShuffleTrainONvalOFF_15_Epochs.keras")
-
-#####################################################################################################
-# Treino de modelo regressor (crowd counting) com MobileNetV2
-#####################################################################################################
-
-# ===========================
-# Parâmetros de REGRESSÃO
-# ===========================
-train_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/nwpu_regression/train_balanced")
-val_dir   = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/nwpu_regression/val")
-
+modelo.save("Modelos/mobilenetV2_Flame2_FineTuning_no_Augmentation_preProMBNV2_ShuffleTrainONvalOFF_20_Epochs.keras")

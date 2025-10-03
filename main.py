@@ -13,7 +13,8 @@ from Fire_Detection_Problem.converter.tfliteConverter import TFLiteConverter
 from Fire_Detection_Problem.loaders import loader
 from Fire_Detection_Problem.utils.model_summary import summary  # ambos funcionam
 from pathlib import Path
-from Fire_Detection_Problem.loaders.loader import representative_dataset_generator
+from Fire_Detection_Problem.loaders.loader import classification_representative_dataset_generator
+from Fire_Detection_Problem.loaders.mdcount_data import regression_representative_dataset_generator
 from Fire_Detection_Problem.utils.metrics import evaluate_models, measure_peak_rss_keras, measure_peak_rss_tflite
 from Fire_Detection_Problem.loaders import mdcount_data
 
@@ -21,91 +22,99 @@ from Fire_Detection_Problem.loaders import mdcount_data
 # Conversão TF-Lite
 # ===================================================================================
 
-
-# # Caminho do modelo treinado 
-caminho_keras = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Classificao_Flame2.keras") 
-
-# # Criar conversor 
-conversor = TFLiteConverter(caminho_keras, nome_saida="TFLITE_FP32_Classificao_Flame2") 
-
-# # Converter para TFLite 
-arquivo_tflite = conversor.converter_tflite(Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos"),
-                                             quantizacao=None)
-
-
-
-# ===============================================================
-# Teste do representative_dataset_generator
-# ===============================================================
-# rep_dir = Path('Fire_Detection_Problem/data/Flame2/train')
-# gen = representative_dataset_generator(rep_dir, img_size=(224,224), rep_samples=2, batch_size=2)
-# g = gen()
-# for i, sample in enumerate(g):
-#     print('sample', i, 'shape:', sample[0].shape, 'dtype:', sample[0].dtype)
-# ===============================================================
-
+FLAME2_TRAIN_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/train")
+FLAME2_VAL_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/val")
+FLAME3_TEST_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/Flame3")
+SHANGHAI_TECH_CROWD_PART_A_TRAIN_IMG_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/images")
+SHANGHAI_TECH_CROWD_PART_A_TRAIN_GT_PATH  = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/ground_truth")
 ROOT = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/ShanghaiTech_Crowd_Counting_Dataset")
 IMG_DIR = ROOT / "part_A_final" / "test_data" / "images"
 GT_DIR  = ROOT / "part_A_final" / "test_data" / "ground_truth"
+# # # Caminho do modelo treinado 
+# caminho_keras = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Regressao_ShanghaiTech_A.keras") 
+
+# # # Criar conversor 
+# conversor = TFLiteConverter(caminho_keras, nome_saida="TFLITE_FP32_Regressao_ShanghaiTech_A") 
+
+# # # Converter para TFLite 
+# arquivo_tflite = conversor.converter_tflite(Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos"),
+#                                               quantizacao=None)
+
+#conversão int8 full com representative dataset
+# arquivo_tflite = conversor.converter_tflite(
+#     caminho=Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos"),
+#     quantizacao="INT8_FULL",
+#     representative_data_dir=SHANGHAI_TECH_CROWD_PART_A_TRAIN_IMG_PATH,
+#     rep_samples=300,
+#     #img_size=(224, 224),
+#     img_size=(512, 512),
+#     batch_size=1,
+#     task="regression",  # "classification" | "regression"
+#     preprocess_fn=mb_preproc,  # se o treino foi com normalizacao /255, passe None para calibrar com /255.0 
+# )
+
+# ===================================================================================
+
+
 
 # lista de imagens (ex.: IMG_1.jpg, IMG_2.jpg, ...)
 filenames = sorted([p.name for p in IMG_DIR.iterdir() if p.suffix.lower() in (".jpg",".jpeg",".png")])
 
 
-# teste_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/Flame3")
-# ds_teste_classification = loader.load_dataset_aug(
-#     teste_dir, 
-#     batch_size=32, 
-#     img_size=(224,224), 
-#     use_augmentation=False, 
-#     preprocess_fn=mb_preproc, 
-#     shuffle=False)
+teste_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/Flame3")
+ds_teste_classification = loader.load_dataset_aug(
+    teste_dir, 
+    batch_size=32, 
+    img_size=(224,224), 
+    use_augmentation=False, 
+    preprocess_fn=mb_preproc, 
+    shuffle=False)
 
 
-# ds_teste_regression = mdcount_data.build_shanghaitech_dataset(
-#     images_dir=IMG_DIR,
-#     gts_dir=GT_DIR,
-#     split_list=filenames,
-#     img_size=(512, 512),
-#     batch_size=6,
-#     shuffle=False,   # embaralha no treino
-#     k=3, beta=0.3,  # MDCount
-#     down_factor=8
-# )
+ds_teste_regression = mdcount_data.build_shanghaitech_dataset(
+    images_dir=IMG_DIR,
+    gts_dir=GT_DIR,
+    split_list=filenames,
+    img_size=(512, 512),
+    batch_size=6,
+    shuffle=False,   # embaralha no treino
+    k=3, beta=0.3,  # MDCount
+    down_factor=8
+)
 
 
-# keras_regression_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/mdcount_mnv2_partA.keras"
-# tflite_regression_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_mdcount_mnv2_partA.tflite"
-# keras_classification_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/mobilenetV2_Flame2_FineTuning_sem_augmentation_preProMBNV2_ShuffleTrainONvalOFF_20_Epochs.keras"
-# tflite_classification_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_mobilenetV2_Flame2_FineTuning_sem_augmentation_preProMBNV2_ShuffleTrainONvalOFF_20_Epochs.tflite"
+keras_regression_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Regressao_ShanghaiTech_A.keras"
+tflite_regression_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_INT8_DR_Regressao_ShanghaiTech_A.tflite"
+keras_classification_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Classificacao_Flame2.keras"
+tflite_classification_model_path = "/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_INT8_FULL_Classificacao_Flame2.tflite"
 
 
-# res = evaluate_models(
-#     task_type="classificacao",
-#     keras_model_path=keras_classification_model_path,
-#     tflite_model_path=tflite_classification_model_path,
-#     test_data= ds_teste_classification,
-#   # input_size=(512, 512, 3), #Regression
-#     input_size=(224, 224, 3), #Classification
-#     threshold=0.5,
-#     latency_warmup=20,
-#     latency_runs=100,
-#     num_threads=1,
-#     limit_samples=None,
-#     )
+res = evaluate_models(
+    task_type="regressao",
+    keras_model_path=keras_regression_model_path,
+    tflite_model_path=tflite_regression_model_path,
+    test_data= ds_teste_regression,
+    input_size=(512, 512, 3), #Regression
+  # input_size=(224, 224, 3), #Classification
+    threshold=0.5,
+    latency_warmup=20,
+    latency_runs=100,
+    num_threads=1,
+    limit_samples=None,
+    )
 
 
 # peak_keras = measure_peak_rss_keras(
 #     task_type="classificacao",
-#     keras_model_path="/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/mobilenetV2_Flame2_FineTuning_sem_augmentation_preProMBNV2_ShuffleTrainONvalOFF_20_Epochs.keras",
-#     test_data= data_set_teste
+#     keras_model_path="/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Classificacao_Flame2.keras",
+#     test_data= ds_teste_classification
 # )
 # print(f"Memória RAM máxima (pico) Keras: {peak_keras:.4f} MB")
 
 # peak_tflite = measure_peak_rss_tflite(
-#     task_type="classificacao",
-#     tflite_model_path="/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_mobilenetV2_Flame2_FineTuning_sem_augmentation_preProMBNV2_ShuffleTrainONvalOFF_20_Epochs.tflite",
-#     test_data= data_set_teste
+#     task_type="regressao",
+#     tflite_model_path="/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/TFLITE_INT8_FULL_Regressao_ShanghaiTech_A.tflite",
+#     test_data= ds_teste_regression
 # )
 # print(f"Memória RAM máxima (pico) TFLite: {peak_tflite:.4f} MB")
 
@@ -127,3 +136,15 @@ filenames = sorted([p.name for p in IMG_DIR.iterdir() if p.suffix.lower() in (".
 
 
 
+#Avalia se a conversão foi bem sucedida
+# import numpy as np, tensorflow as tf
+
+# path = "Modelos/TFLITE_INT8_FULL_Classificacao_Flame2.tflite"
+# interp = tf.lite.Interpreter(model_path=path)
+# interp.allocate_tensors()
+
+# inp = interp.get_input_details()[0]
+# out = interp.get_output_details()[0]
+
+# print("INPUT:", inp["dtype"], "quantization:", inp["quantization"])
+# print("OUTPUT:", out["dtype"], "quantization:", out["quantization"])
