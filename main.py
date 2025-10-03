@@ -9,25 +9,25 @@ from sklearn.metrics import classification_report, confusion_matrix, precision_s
 import csv
 import os
 from datetime import datetime
-from Fire_Detection_Problem.converter.tfliteConverter import TFLiteConverter
-from Fire_Detection_Problem.loaders import loader
-from Fire_Detection_Problem.utils.model_summary import summary  # ambos funcionam
+from src.converter.tfliteConverter import TFLiteConverter
+from src.loaders import loader
+from src.utils.model_summary import summary  # ambos funcionam
 from pathlib import Path
-from Fire_Detection_Problem.loaders.loader import classification_representative_dataset_generator
-from Fire_Detection_Problem.loaders.mdcount_data import regression_representative_dataset_generator
-from Fire_Detection_Problem.utils.metrics import evaluate_models, measure_peak_rss_keras, measure_peak_rss_tflite
-from Fire_Detection_Problem.loaders import mdcount_data
+from src.loaders.loader import classification_representative_dataset_generator
+from src.loaders.mdcount_data import regression_representative_dataset_generator
+from src.utils.metrics import evaluate_models, measure_peak_rss_keras, measure_peak_rss_tflite
+from src.loaders import mdcount_data
 
 # ===================================================================================
 # Conversão TF-Lite
 # ===================================================================================
 
-FLAME2_TRAIN_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/train")
-FLAME2_VAL_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/splits/val")
-FLAME3_TEST_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/Flame3")
-SHANGHAI_TECH_CROWD_PART_A_TRAIN_IMG_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/images")
-SHANGHAI_TECH_CROWD_PART_A_TRAIN_GT_PATH  = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/ground_truth")
-ROOT = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/ShanghaiTech_Crowd_Counting_Dataset")
+FLAME2_TRAIN_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/splits/train")
+FLAME2_VAL_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/splits/val")
+FLAME3_TEST_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/Flame3")
+SHANGHAI_TECH_CROWD_PART_A_TRAIN_IMG_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/images")
+SHANGHAI_TECH_CROWD_PART_A_TRAIN_GT_PATH  = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/ground_truth")
+ROOT = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/ShanghaiTech_Crowd_Counting_Dataset")
 IMG_DIR = ROOT / "part_A_final" / "test_data" / "images"
 GT_DIR  = ROOT / "part_A_final" / "test_data" / "ground_truth"
 # # # Caminho do modelo treinado 
@@ -61,7 +61,7 @@ GT_DIR  = ROOT / "part_A_final" / "test_data" / "ground_truth"
 filenames = sorted([p.name for p in IMG_DIR.iterdir() if p.suffix.lower() in (".jpg",".jpeg",".png")])
 
 
-teste_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Fire_Detection_Problem/data/Flame3")
+teste_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/Flame3")
 ds_teste_classification = loader.load_dataset_aug(
     teste_dir, 
     batch_size=32, 
