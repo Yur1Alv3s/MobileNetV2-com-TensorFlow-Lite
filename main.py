@@ -19,19 +19,28 @@ from src.utils.metrics import evaluate_models, measure_peak_rss_keras, measure_p
 from src.loaders import mdcount_data
 
 # ===================================================================================
-# Conversão TF-Lite
+# Conversão TF-Lite / Definição de caminhos
 # ===================================================================================
 
-FLAME2_TRAIN_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/splits/train")
-FLAME2_VAL_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/splits/val")
-FLAME3_TEST_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/Flame3")
-SHANGHAI_TECH_CROWD_PART_A_TRAIN_IMG_PATH = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/images")
-SHANGHAI_TECH_CROWD_PART_A_TRAIN_GT_PATH  = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/ShanghaiTech_Crowd_Counting_Dataset/part_A_final/train_data/ground_truth")
-ROOT = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/ShanghaiTech_Crowd_Counting_Dataset")
-IMG_DIR = ROOT / "part_A_final" / "test_data" / "images"
-GT_DIR  = ROOT / "part_A_final" / "test_data" / "ground_truth"
+# Diretório base deste arquivo (raiz do projeto)
+BASE_DIR = Path(__file__).resolve().parent
+SRC_DIR = BASE_DIR / "src"
+DATA_DIR = SRC_DIR / "data"
+
+# Caminhos de classificação (Flame2 / Flame3)
+FLAME2_TRAIN_PATH = DATA_DIR / "splits" / "train"
+FLAME2_VAL_PATH   = DATA_DIR / "splits" / "val"
+FLAME3_TEST_PATH  = DATA_DIR / "Flame3"
+
+# Caminhos de regressão (ShanghaiTech Part A)
+SHANGHAI_ROOT = DATA_DIR / "ShanghaiTech_Crowd_Counting_Dataset"
+SHANGHAI_TECH_CROWD_PART_A_TRAIN_IMG_PATH = SHANGHAI_ROOT / "part_A_final" / "train_data" / "images"
+SHANGHAI_TECH_CROWD_PART_A_TRAIN_GT_PATH  = SHANGHAI_ROOT / "part_A_final" / "train_data" / "ground_truth"
+ROOT = SHANGHAI_ROOT  # compatibilidade com código existente
+IMG_DIR = SHANGHAI_ROOT / "part_A_final" / "test_data" / "images"
+GT_DIR  = SHANGHAI_ROOT / "part_A_final" / "test_data" / "ground_truth"
 # # # Caminho do modelo treinado 
-# caminho_keras = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/Modelos/Regressao_ShanghaiTech_A.keras") 
+# caminho_keras = Path("Codigo/src/Modelos/Regressao_ShanghaiTech_A.keras")
 
 # # # Criar conversor 
 # conversor = TFLiteConverter(caminho_keras, nome_saida="TFLITE_FP32_Regressao_ShanghaiTech_A") 
@@ -58,10 +67,13 @@ GT_DIR  = ROOT / "part_A_final" / "test_data" / "ground_truth"
 
 
 # lista de imagens (ex.: IMG_1.jpg, IMG_2.jpg, ...)
+if not IMG_DIR.exists():
+    raise FileNotFoundError(f"Diretório de imagens de teste não encontrado: {IMG_DIR}\nVerifique se o dataset foi movido corretamente para {SHANGHAI_ROOT}.")
+
 filenames = sorted([p.name for p in IMG_DIR.iterdir() if p.suffix.lower() in (".jpg",".jpeg",".png")])
 
 
-teste_dir = Path("/home/yuri-alves/Área de Trabalho/VScode/TCC/Codigo/src/data/Flame3")
+teste_dir = DATA_DIR / "Flame3"
 ds_teste_classification = loader.load_dataset_aug(
     teste_dir, 
     batch_size=32, 
