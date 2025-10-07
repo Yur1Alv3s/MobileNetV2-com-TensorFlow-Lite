@@ -10,9 +10,7 @@ data/splits/
 splits/
 
 # Models and large binaries
-Modelos/
-*.tflite
-*.keras
+
 *.h5
 *.pb
 *.pt
