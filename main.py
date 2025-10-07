@@ -19,7 +19,7 @@ from src.utils.metrics import evaluate_models, measure_peak_rss_keras, measure_p
 from src.loaders import mdcount_data
 
 # ===================================================================================
-# Conversão TF-Lite / Definição de caminhos
+# Conversão TfLite e paths
 # ===================================================================================
 
 # Diretório base deste arquivo (raiz do projeto)
