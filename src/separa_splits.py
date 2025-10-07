@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Gera os splits (train/val/test) a partir de uma pasta de imagens e um arquivo
+de rótulos por intervalo. Move ou copia as imagens para pastas organizadas por
+split e classe (fire/nofire).
+
+Observação: o script assume que os nomes dos arquivos têm um número de frame
+que pode ser extraído (ex.: "Frame (123).jpg" ou qualquer nome cujo último
+grupo numérico represente o frame). Não altera o conteúdo das imagens.
+"""
 
 import os
 import re
@@ -8,31 +17,32 @@ import random
 from pathlib import Path
 from collections import defaultdict
 
-# ====================== CONFIGS ======================
-SOURCE_IMAGES_DIR = Path("data/images")       # Pasta com TODAS as imagens
-LABELS_FILE       = Path("data/labels.txt")   # Arquivo de rótulos por intervalo
+# Configurações principais
+SOURCE_IMAGES_DIR = Path("data/images")       # Pasta com todas as imagens
+LABELS_FILE       = Path("data/labels.txt")   # Arquivo com rótulos por intervalo
 OUTPUT_DIR        = Path("data/splits")       # Saída: train/val/test/{fire,nofire}
 
-SPLIT_RATIOS = {"train": 0.7, "val": 0.15, "test": 0.15}  # soma = 1.0
+SPLIT_RATIOS = {"train": 0.7, "val": 0.15, "test": 0.15}  # deve somar 1.0
 
-COPY_INSTEAD_OF_MOVE = True
+COPY_INSTEAD_OF_MOVE = True   # True = copia os arquivos; False = move
 
 BALANCE_TRAIN = True
 BALANCE_VAL   = True
-BALANCE_TEST  = False  # geralmente manter distribuição real no teste
+BALANCE_TEST  = False  # no teste, normalmente mantemos a distribuição real
 
 RANDOM_SEED = 42
 
 ACCEPTED_EXTS = {"jpg", "jpeg", "png", "bmp"}
 
-# Apenas arquivos que contenham estas substrings (case-insensitive).
-# Para pegar só RGB: ["RGB"]; para não filtrar: [].
+# Filtra nomes de arquivos que contenham estas substrings (case-insensitive).
+# Ex.: para pegar apenas RGB: ["RGB"]. Para não filtrar: [].
 REQUIRE_SUBSTRINGS = ["RGB"]
 
 # =====================================================
 
 def map_label_to_binary(label: str) -> str:
-    # YY, YN -> fire ;  NN, NY -> nofire
+    """Converte rótulos YY/YN/NN/NY em classes binárias: fire/nofire."""
+    # YY, YN -> fire ; NN, NY -> nofire
     label = label.upper()
     if label in {"YY", "YN"}:
         return "fire"
@@ -42,6 +52,7 @@ def map_label_to_binary(label: str) -> str:
         return "ignore"
 
 def parse_labels_file(path: Path):
+    """Lê o arquivo de rótulos e retorna intervalos válidos com classe binária."""
     intervals = []
     with path.open("r", encoding="utf-8", errors="ignore") as f:
         for line in f:
@@ -64,18 +75,17 @@ def parse_labels_file(path: Path):
     intervals.sort(key=lambda x: (x["bin"], x["start"]))
     return intervals
 
-# --------- NOVO: indexador robusto para nomes como "254p RGB Frame (1).jpg" ---------
+# Indexador para nomes do tipo "... Frame (123).jpg" (ou com número no fim)
 
 PAREN_NUM_RE   = re.compile(r"\((\d+)\)")           # pega número entre parênteses
 LAST_NUMBER_RE = re.compile(r"(\d+)(?!.*\d)")       # pega último grupo numérico na string
 
 def extract_frame_number(filename: str) -> int | None:
-    """
-    Tenta extrair o número do frame do nome do arquivo.
-    Ordem:
+    """Tenta extrair o número do frame do nome do arquivo.
+    Ordem de busca:
       1) número entre parênteses: "Frame (123).jpg" -> 123
-      2) último número no nome:   "Frame 000123.jpg" -> 123
-    Retorna int ou None se não encontrar.
+      2) último número do nome:   "Frame 000123.jpg" -> 123
+    Retorna int ou None se não houver número.
     """
     m = PAREN_NUM_RE.search(filename)
     if m:
@@ -86,12 +96,11 @@ def extract_frame_number(filename: str) -> int | None:
     return None
 
 def index_numeric_images(src_dir: Path):
-    """
-    Cria um índice {frame_number: Path} a partir de nomes de arquivo.
-    - Aceita extensões em ACCEPTED_EXTS
-    - Extrai número via extract_frame_number()
-    - (Opcional) exige substrings (REQUIRE_SUBSTRINGS) no nome, ex.: "RGB"
-    Se houver duplicatas (mesmo frame com extensões diferentes), mantém o primeiro visto.
+    """Cria um índice {frame_number: Path} a partir dos nomes.
+    - Filtra pelas extensões em ACCEPTED_EXTS
+    - Extrai o número com extract_frame_number()
+    - (Opcional) exige substrings (REQUIRE_SUBSTRINGS), ex.: "RGB"
+    Em caso de duplicata (mesmo frame com extensões diferentes), mantém o primeiro.
     """
     idx = {}
     reqs = [s.lower() for s in REQUIRE_SUBSTRINGS]
@@ -114,10 +123,9 @@ def index_numeric_images(src_dir: Path):
 # ----------------------------------------------------
 
 def split_intervals(intervals, ratios, seed=42):
-    """
-    Split por INTERVALOS estratificado por classe binária.
-    Se uma classe tiver apenas 1 intervalo, ele é SUBDIVIDIDO proporcionalmente
-    entre train/val/test para garantir presença de ambas as classes em todos os splits.
+    """Divide por intervalos, estratificando por classe binária.
+    Caso uma classe tenha só 1 intervalo, ele é subdividido proporcionalmente
+    entre train/val/test para garantir que ambas as classes apareçam nos três splits.
     """
     import random
     from collections import defaultdict
@@ -202,11 +210,13 @@ def split_intervals(intervals, ratios, seed=42):
     return splits
 
 def ensure_dirs(base_out: Path):
+    """Garante a criação das pastas de saída (train/val/test e suas classes)."""
     for part in ["train", "val", "test"]:
         (base_out / part / "fire").mkdir(parents=True, exist_ok=True)
         (base_out / part / "nofire").mkdir(parents=True, exist_ok=True)
 
 def copy_or_move(src: Path, dst: Path, copy=True):
+    """Copia ou move um arquivo, criando a pasta de destino se precisar."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     if copy:
         shutil.copy2(src, dst)
@@ -215,6 +225,9 @@ def copy_or_move(src: Path, dst: Path, copy=True):
 
 def place_frames_balanced(intervals, img_index, out_dir: Path, split_name: str,
                           copy=True, balance=True, seed=42):
+    """Seleciona frames dos intervalos e coloca nas pastas do split.
+    Se balance=True, limita para ter o mesmo número de fire/nofire.
+    """
     random.seed(seed)
     fire_frames, nofire_frames = [], []
 
@@ -253,12 +266,14 @@ def place_frames_balanced(intervals, img_index, out_dir: Path, split_name: str,
     return counts
 
 def summarize_counts(title, c):
+    """Resumo amigável de contagens por classe e total."""
     total = c["fire"] + c["nofire"]
     ratio = (f"{(c['fire']/total*100):.1f}% fire / {(c['nofire']/total*100):.1f}% nofire"
              if total else "n/a")
     return f"{title}: fire={c['fire']:,} | nofire={c['nofire']:,} | total={total:,} | {ratio}"
 
 def main():
+    """Ponto de entrada do script: valida configurações, cria splits e imprime um resumo."""
     s = sum(SPLIT_RATIOS.values())
     if abs(s - 1.0) > 1e-6:
         raise ValueError(f"As razões devem somar 1.0, somam {s}")
